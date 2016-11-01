@@ -9,8 +9,7 @@
     <version>2.11</version>
     <relativePath/>
   </parent>
-  <groupId>windockspkg</groupId>
-  <artifactId>Start-Windocks-Container</artifactId>
+  <artifactId>start-windocks-container</artifactId>
   <version>1.0</version>
   <packaging>hpi</packaging>
 
