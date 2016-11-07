@@ -188,23 +188,33 @@ public class WinDocksBuilder extends Builder implements SimpleBuildStep {
 
     private static Boolean StartContainer(String ipAddress, String containerId) throws IOException, Exception
     {
-        String urlStartTemplate = "http://%s/containers/%s/%s";
-        URL urlStart = new URL(String.format(urlStartTemplate, ipAddress, containerId, "start"));
-    
-        HttpURLConnection connectionStart = (HttpURLConnection)urlStart.openConnection();
-        connectionStart.setRequestMethod("POST");
-        connectionStart.setRequestProperty("Content-Type", "application/json");
-        connectionStart.setRequestProperty("Accept", "application/json");
-        connectionStart.setDoOutput(true);
-        connectionStart.connect();
-    
-        int responseCodeStart = connectionStart.getResponseCode();
-        if(responseCodeStart == 204)
-        {
-            return true;
-        }
+        HttpURLConnection connectionStart = null;
 
-        return false;
+        try {
+            String urlStartTemplate = "http://%s/containers/%s/%s";
+            URL urlStart = new URL(String.format(urlStartTemplate, ipAddress, containerId, "start"));
+    
+            connectionStart = (HttpURLConnection)urlStart.openConnection();
+            connectionStart.setRequestMethod("POST");
+            connectionStart.setRequestProperty("Content-Type", "application/json");
+            connectionStart.setRequestProperty("Accept", "application/json");
+            connectionStart.setDoOutput(true);
+            connectionStart.connect();
+    
+            int responseCodeStart = connectionStart.getResponseCode();
+            if(responseCodeStart == 204)
+            {
+                return true;
+            }
+
+            return false;
+
+        } finally{
+            if(connectionStart != null) 
+            {
+                connectionStart.disconnect();
+            }
+        }
     }
     
     /** Overridden for better type safety.
@@ -318,42 +328,52 @@ public class WinDocksBuilder extends Builder implements SimpleBuildStep {
         private String[] GetImages(String ipAddress) 
             throws IOException, IllegalArgumentException, JsonIOException, JsonSyntaxException {    
 
-            if(ipAddress == null) 
-            { 
-                throw new IllegalArgumentException("Invalid Docker server IP Address");
-            }
+            HttpURLConnection connection = null;
 
-            String urlString = String.format("http://%s/images/json", ipAddress);
-            URL url = new URL(urlString);
+            try {       
+                if(ipAddress == null) 
+                { 
+                    throw new IllegalArgumentException("Invalid Docker server IP Address");
+                }
 
-            HttpURLConnection connection = (HttpURLConnection)url.openConnection();
-            connection.setRequestMethod("GET");
-            connection.connect();
+                String urlString = String.format("http://%s/images/json", ipAddress);
+                URL url = new URL(urlString);
+    
+                connection = (HttpURLConnection)url.openConnection();
+                connection.setRequestMethod("GET");
+                connection.connect();
 
-            InputStream stream = connection.getInputStream();
-            InputStreamReader streamReader = new InputStreamReader(stream, "UTF-8");
+                InputStream stream = connection.getInputStream();
+                InputStreamReader streamReader = new InputStreamReader(stream, "UTF-8");
 
-            Gson gson = new GsonBuilder().create();
-            Image[] Images = gson.fromJson(streamReader, Image[].class);
-            ArrayList<String> imageNames = new ArrayList<String>();
+                Gson gson = new GsonBuilder().create();
+                Image[] Images = gson.fromJson(streamReader, Image[].class);
+                ArrayList<String> imageNames = new ArrayList<String>();
 
-            for(Image image : Images)
-            {
-                if(image.RepoTags != null)
+                for(Image image : Images)
                 {
-                    for( String repoTag : image.RepoTags)
+                    if(image.RepoTags != null)
                     {
-                        String[] tagParts = repoTag.split(":");
-                        if(tagParts.length > 0)
-                        {
-                            /** Image name is the first part of a tag... */
-                            imageNames.add(tagParts[0]);
+                        for( String repoTag : image.RepoTags)
+                        {   
+                            String[] tagParts = repoTag.split(":");
+                            if(tagParts.length > 0)
+                            {
+                                /** Image name is the first part of a tag... */
+                                imageNames.add(tagParts[0]);
+                            }
                         }
                     }
                 }
-            }
 
-            return imageNames.toArray(new String[1]);
-        }
-    }   
+                return imageNames.toArray(new String[1]);
+
+            } finally {
+                if(connection != null)
+                {
+                    connection.disconnect();
+                }    
+            }
+        }   
+    }
 }
